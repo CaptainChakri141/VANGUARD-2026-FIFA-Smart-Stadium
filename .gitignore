@@ -1,0 +1,18 @@
+# Dependency directories
+node_modules/
+
+# OS metadata files
+.DS_Store
+Thumbs.db
+
+# IDE configuration folders
+.vscode/
+.idea/
+
+# Local logs
+*.log
+npm-debug.log*
+
+# System generated or temp files
+.gemini/
+.system_generated/
