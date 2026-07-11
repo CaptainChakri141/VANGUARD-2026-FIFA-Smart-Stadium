@@ -199,6 +199,26 @@ runTest("classifyIntent - falls back correctly for unknown German query", () => 
   assert.ok(result.includes("KI-Concierge") || result.includes("Fan-Service"));
 });
 
+// ==========================================================
+// 9. REWARD CARBON SAVINGS & CHATBOT DYNAMIC GATE DIRECTIONS
+// ==========================================================
+runTest("calculateCarbonImpact - correctly calculates carbon offset/savings", () => {
+  const result = calculateCarbonImpact("metro", 100);
+  assert.strictEqual(result.saved, 17); // (0.19 - 0.02) * 100 = 17
+});
+
+runTest("classifyIntent - appends gate-specific directions for Gate A", () => {
+  const query = "Where is the nearest medical station from Gate A?";
+  const result = classifyIntent(query, 'en');
+  assert.ok(result.includes("short 1-minute walk along the North main corridor"));
+});
+
+runTest("classifyIntent - appends gate-specific directions for Gate B in German", () => {
+  const query = "Wo ist die Sanitätsstation bei Tor B?";
+  const result = classifyIntent(query, 'de');
+  assert.ok(result.includes("nördlichen Korridors (ca. 3 Minuten zu Fuß)"));
+});
+
 
 // ==========================================================
 // RESULTS SUMMARY

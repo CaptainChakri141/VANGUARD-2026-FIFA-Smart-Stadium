@@ -104,8 +104,18 @@ export function classifyIntent(text, targetLang = 'en') {
   const lang = TRANSLATION_DB[targetLang] ? targetLang : 'en';
   const dict = TRANSLATION_DB[lang];
 
-  if (query.includes('medical') || query.includes('doctor') || query.includes('nurse') || query.includes('hurt') || query.includes('faint') || query.includes('hospital') || query.includes('aid') || query.includes('médico') || query.includes('médecin') || query.includes('arzt') || query.includes('medizin') || query.includes('krank')) {
-    return dict.medical_station;
+  if (query.includes('medical') || query.includes('doctor') || query.includes('nurse') || query.includes('hurt') || query.includes('faint') || query.includes('hospital') || query.includes('aid') || query.includes('médico') || query.includes('médecin') || query.includes('arzt') || query.includes('medizin') || query.includes('krank') || query.includes('sanitäts') || query.includes('sanitätsstation') || query.includes('sanitaetsstation')) {
+    let base = dict.medical_station;
+    if (query.includes('gate a') || query.includes('puerta a') || query.includes('tor a')) {
+      if (lang === 'en') base += " Since you are at Gate A, it is just a short 1-minute walk along the North main corridor.";
+      else if (lang === 'es') base += " Como está en la Puerta A, está a solo 1 minuto a pie por el pasillo principal del Norte.";
+      else if (lang === 'de') base += " Da Sie sich an Tor A befinden, ist es nur 1 Minute zu Fuß entlang des nördlichen Hauptkorridors.";
+    } else if (query.includes('gate b') || query.includes('puerta b') || query.includes('tor b')) {
+      if (lang === 'en') base += " From Gate B, head West along the North corridor (approx. 3-minute walk).";
+      else if (lang === 'es') base += " Desde la Puerta B, diríjase al Oeste por el pasillo Norte (aprox. 3 minutos a pie).";
+      else if (lang === 'de') base += " Gehen Sie von Tor B aus nach Westen entlang des nördlichen Korridors (ca. 3 Minuten zu Fuß).";
+    }
+    return base;
   }
   if (query.includes('gate') || query.includes('entrance') || query.includes('crowd') || query.includes('congestion') || query.includes('queue') || query.includes('wait') || query.includes('line') || query.includes('puerta') || query.includes('porte') || query.includes('tor') || query.includes('einlass') || query.includes('schlange') || query.includes('wartezeit')) {
     return dict.gate_congestion;
@@ -230,6 +240,10 @@ export function calculateCarbonImpact(mode, distanceKm) {
   const factor = emissionFactors[mode] || 0.15;
   const emittedCo2 = parseFloat((parsedDistance * factor).toFixed(2));
   
+  // Calculate Carbon Saved/Offset relative to single occupancy petrol car (0.19 kg/km)
+  const singleFactor = 0.19;
+  const savedCo2 = Math.max(0, parseFloat(((singleFactor - factor) * parsedDistance).toFixed(2)));
+  
   // Calculate Points (inverse relationship: lower carbon + longer transit = more reward points)
   let rating = "Good 🌱";
   let points = 0;
@@ -253,6 +267,7 @@ export function calculateCarbonImpact(mode, distanceKm) {
 
   return {
     co2: emittedCo2,
+    saved: savedCo2,
     rating,
     points: Math.min(250, points) // Cap points at 250 per transaction
   };

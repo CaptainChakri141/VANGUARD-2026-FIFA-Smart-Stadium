@@ -38,6 +38,7 @@ const elements = {
   distanceInput: null,
   resultsDiv: null,
   co2Val: null,
+  co2SavedVal: null,
   ratingVal: null,
   pointsVal: null,
   rewardDrink: null,
@@ -69,6 +70,7 @@ export function initFanPortal() {
     elements.distanceInput = document.getElementById('gg-distance');
     elements.resultsDiv = document.getElementById('greengoal-result');
     elements.co2Val = document.getElementById('gg-co2-val');
+    elements.co2SavedVal = document.getElementById('gg-saved-val');
     elements.ratingVal = document.getElementById('gg-rating-val');
     elements.pointsVal = document.getElementById('gg-points-val');
     elements.rewardDrink = document.getElementById('reward-drink');
@@ -181,18 +183,22 @@ function speakText(text) {
  */
 function handleChatSubmission() {
   try {
-    if (!elements.chatInput || !elements.chatMessages || !elements.langSelect) return;
+    const chatInput = elements.chatInput || document.getElementById('fan-chat-input');
+    const chatMessages = elements.chatMessages || document.getElementById('fan-chat-messages');
+    const langSelect = elements.langSelect || document.getElementById('fan-lang-select');
 
-    const rawMsg = elements.chatInput.value.trim();
+    if (!chatInput || !chatMessages || !langSelect) return;
+
+    const rawMsg = chatInput.value.trim();
     if (!rawMsg) return;
 
     // Clean and sanitize user query
     const cleanMsg = sanitizeInput(rawMsg);
-    const targetLang = elements.langSelect.value || 'en';
+    const targetLang = langSelect.value || 'en';
 
     // Append user bubble to UI
     appendChatBubble('user', cleanMsg);
-    elements.chatInput.value = '';
+    chatInput.value = '';
 
     // Classify intent and fetch AI response
     const aiResponse = classifyIntent(cleanMsg, targetLang);
@@ -210,7 +216,8 @@ function handleChatSubmission() {
  * @param {string} text - message content
  */
 function appendChatBubble(sender, text) {
-  if (!elements.chatMessages) return;
+  const chatMessages = elements.chatMessages || document.getElementById('fan-chat-messages');
+  if (!chatMessages) return;
 
   const msgDiv = document.createElement('div');
   msgDiv.className = `chat-msg ${sender}`;
@@ -220,10 +227,10 @@ function appendChatBubble(sender, text) {
   bubble.textContent = text;
   
   msgDiv.appendChild(bubble);
-  elements.chatMessages.appendChild(msgDiv);
+  chatMessages.appendChild(msgDiv);
   
   // Scroll to bottom
-  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 /**
@@ -232,7 +239,9 @@ function appendChatBubble(sender, text) {
  * @param {string} fullText - message content to stream
  */
 function appendChatBubbleWithTyping(sender, fullText) {
-  if (!elements.chatMessages) return;
+  const chatMessages = elements.chatMessages || document.getElementById('fan-chat-messages');
+  const announcer = elements.announcer || document.getElementById('sr-announcer');
+  if (!chatMessages) return;
 
   // Clear any existing typing interval to avoid race conditions
   if (fanState.typingInterval) {
@@ -248,14 +257,14 @@ function appendChatBubbleWithTyping(sender, fullText) {
   bubble.textContent = ''; // Start empty for streaming
   
   msgDiv.appendChild(bubble);
-  elements.chatMessages.appendChild(msgDiv);
+  chatMessages.appendChild(msgDiv);
 
   // Trigger TTS reading immediately at stream start
   speakText(fullText);
 
   // Announce dynamic bot output in live region
-  if (elements.announcer) {
-    elements.announcer.textContent = `New AI message: ${fullText}`;
+  if (announcer) {
+    announcer.textContent = `New AI message: ${fullText}`;
   }
 
   // Typist routine
@@ -266,7 +275,7 @@ function appendChatBubbleWithTyping(sender, fullText) {
       if (index < words.length) {
         bubble.textContent += (index === 0 ? '' : ' ') + words[index];
         index++;
-        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
       } else {
         clearInterval(fanState.typingInterval);
         fanState.typingInterval = null;
@@ -283,10 +292,19 @@ function appendChatBubbleWithTyping(sender, fullText) {
  */
 function handleCarbonCalculation() {
   try {
-    if (!elements.transportSel || !elements.distanceInput || !elements.resultsDiv || !elements.co2Val || !elements.ratingVal || !elements.pointsVal) return;
+    const transportSel = elements.transportSel || document.getElementById('gg-transport');
+    const distanceInput = elements.distanceInput || document.getElementById('gg-distance');
+    const resultsDiv = elements.resultsDiv || document.getElementById('greengoal-result');
+    const co2Val = elements.co2Val || document.getElementById('gg-co2-val');
+    const co2SavedVal = elements.co2SavedVal || document.getElementById('gg-saved-val');
+    const ratingVal = elements.ratingVal || document.getElementById('gg-rating-val');
+    const pointsVal = elements.pointsVal || document.getElementById('gg-points-val');
+    const announcer = elements.announcer || document.getElementById('sr-announcer');
 
-    const mode = elements.transportSel.value;
-    const dist = parseFloat(elements.distanceInput.value);
+    if (!transportSel || !distanceInput || !resultsDiv || !co2Val || !co2SavedVal || !ratingVal || !pointsVal) return;
+
+    const mode = transportSel.value;
+    const dist = parseFloat(distanceInput.value);
 
     // Validate travel distance boundaries (0 to 15000 km)
     if (isNaN(dist) || dist <= 0) {
@@ -301,19 +319,20 @@ function handleCarbonCalculation() {
     const res = calculateCarbonImpact(mode, dist);
 
     // Render metrics
-    elements.co2Val.textContent = `${res.co2} kg CO₂`;
-    elements.ratingVal.textContent = res.rating;
+    co2Val.textContent = `${res.co2} kg CO₂`;
+    co2SavedVal.textContent = `${res.saved} kg CO₂`;
+    ratingVal.textContent = res.rating;
     
     // Update state and rewards
     fanState.greenPoints += res.points;
-    elements.pointsVal.textContent = `${fanState.greenPoints} pts`;
+    pointsVal.textContent = `${fanState.greenPoints} pts`;
 
     // Announce values to screen reader
-    if (elements.announcer) {
-      elements.announcer.textContent = `Carbon footprint calculated: ${res.co2} kilograms. AI sustainability score rating is: ${res.rating}. You earned ${res.points} Green Points! Total points balance: ${fanState.greenPoints} points.`;
+    if (announcer) {
+      announcer.textContent = `Carbon footprint calculated: ${res.co2} kilograms. Carbon saved/offset: ${res.saved} kilograms. AI sustainability score rating is: ${res.rating}. You earned ${res.points} Green Points! Total points balance: ${fanState.greenPoints} points.`;
     }
 
-    elements.resultsDiv.classList.remove('hidden');
+    resultsDiv.classList.remove('hidden');
     updateRedemptionButtons();
   } catch (error) {
     console.error("Carbon calculation error:", error);

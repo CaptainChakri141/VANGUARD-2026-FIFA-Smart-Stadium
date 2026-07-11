@@ -101,6 +101,9 @@ export function initStaffPortal() {
     renderInitialIncidents();
     updateCrowdProgressMeters();
 
+    // Start background telemetry fluctuations
+    startTelemetrySimulations();
+
   } catch (error) {
     console.error("Error booting Staff Portal:", error);
   }
@@ -123,9 +126,18 @@ function renderInitialIncidents() {
  */
 function handleIncidentReporting() {
   try {
-    if (!elements.rawTextArea || !elements.outputBox) return;
+    const rawTextArea = elements.rawTextArea || document.getElementById('incident-raw-text');
+    const outputBox = elements.outputBox || document.getElementById('dispatch-output');
+    const aiDispClass = elements.aiDispClass || document.getElementById('ai-disp-class');
+    const aiDispSeverity = elements.aiDispSeverity || document.getElementById('ai-disp-severity');
+    const aiDispLoc = elements.aiDispLoc || document.getElementById('ai-disp-loc');
+    const aiDispAssignee = elements.aiDispAssignee || document.getElementById('ai-disp-assignee');
+    const aiDispAction = elements.aiDispAction || document.getElementById('ai-disp-action');
+    const announcer = elements.announcer || document.getElementById('sr-announcer');
 
-    const rawText = elements.rawTextArea.value.trim();
+    if (!rawTextArea || !outputBox) return;
+
+    const rawText = rawTextArea.value.trim();
     if (!rawText) {
       alert("Please enter incident details first.");
       return;
@@ -136,21 +148,21 @@ function handleIncidentReporting() {
     const analysis = processIncidentReport(cleanInput);
 
     // Render dispatch intelligence block
-    if (elements.aiDispClass) elements.aiDispClass.textContent = analysis.category;
-    if (elements.aiDispSeverity) elements.aiDispSeverity.textContent = analysis.severity;
-    if (elements.aiDispLoc) elements.aiDispLoc.textContent = analysis.location;
-    if (elements.aiDispAssignee) elements.aiDispAssignee.textContent = analysis.assignee;
-    if (elements.aiDispAction) elements.aiDispAction.textContent = analysis.plan;
+    if (aiDispClass) aiDispClass.textContent = analysis.category;
+    if (aiDispSeverity) aiDispSeverity.textContent = analysis.severity;
+    if (aiDispLoc) aiDispLoc.textContent = analysis.location;
+    if (aiDispAssignee) aiDispAssignee.textContent = analysis.assignee;
+    if (aiDispAction) aiDispAction.textContent = analysis.plan;
 
     // Apply custom severity styling
-    if (elements.aiDispSeverity) {
-      elements.aiDispSeverity.className = 'd-val'; // reset
-      if (analysis.severity === 'Critical') elements.aiDispSeverity.style.color = 'var(--red-color)';
-      else if (analysis.severity === 'Medium') elements.aiDispSeverity.style.color = 'var(--gold-color)';
-      else elements.aiDispSeverity.style.color = 'var(--primary-color)';
+    if (aiDispSeverity) {
+      aiDispSeverity.className = 'd-val'; // reset
+      if (analysis.severity === 'Critical') aiDispSeverity.style.color = 'var(--red-color)';
+      else if (analysis.severity === 'Medium') aiDispSeverity.style.color = 'var(--gold-color)';
+      else aiDispSeverity.style.color = 'var(--primary-color)';
     }
 
-    elements.outputBox.classList.remove('hidden');
+    outputBox.classList.remove('hidden');
 
     // Append new item to active queue list
     const newInc = {
@@ -163,11 +175,11 @@ function handleIncidentReporting() {
     };
 
     appendIncidentRow(newInc);
-    elements.rawTextArea.value = '';
+    rawTextArea.value = '';
 
     // Broadcast dispatch to screen reader
-    if (elements.announcer) {
-      elements.announcer.textContent = `New incident logged. Class: ${analysis.category}, Location: ${analysis.location}, Assigned volunteer: ${analysis.assignee}. Action plan generated successfully.`;
+    if (announcer) {
+      announcer.textContent = `New incident logged. Class: ${analysis.category}, Location: ${analysis.location}, Assigned volunteer: ${analysis.assignee}. Action plan generated successfully.`;
     }
   } catch (error) {
     console.error("Error processing incident report:", error);
@@ -381,4 +393,40 @@ function triggerAIRerouting() {
   } catch (error) {
     console.error("Error triggering AI rerouting:", error);
   }
+}
+
+/**
+ * Dynamic telemetry simulations for live stadium telemetry updates.
+ */
+function startTelemetrySimulations() {
+  setInterval(() => {
+    try {
+      // Find telemetry cells dynamically (to be fully defensive)
+      const telemetryItems = document.querySelectorAll('.telemetry-item');
+      if (!telemetryItems || telemetryItems.length < 4) return;
+
+      // 1. Renewable Energy Grid (index 0)
+      const energyVal = telemetryItems[0].querySelector('.t-value');
+      if (energyVal) {
+        const randEnergy = (85 + Math.random() * 4).toFixed(1);
+        energyVal.textContent = `${randEnergy}% Powering`;
+      }
+
+      // 2. Quiet Sensory Lounges (index 1)
+      const loungesVal = telemetryItems[1].querySelector('.t-value');
+      if (loungesVal) {
+        const occupied = Math.floor(4 + Math.random() * 3);
+        loungesVal.textContent = `${occupied}/12 Occupied`;
+      }
+
+      // 3. Shuttle Fleet (index 2)
+      const shuttleVal = telemetryItems[2].querySelector('.t-value');
+      if (shuttleVal) {
+        const activeShuttles = Math.floor(12 + Math.random() * 5);
+        shuttleVal.textContent = `${activeShuttles} Active`;
+      }
+    } catch (e) {
+      // Fail silently to avoid breaking anything
+    }
+  }, 4000); // every 4 seconds
 }

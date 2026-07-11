@@ -73,18 +73,20 @@ export function initAccessibilityService() {
  */
 function toggleContrastMode() {
   try {
-    if (!elements.contrastBtn) return;
+    const contrastBtn = elements.contrastBtn || document.getElementById('contrast-toggle');
+    const announcer = elements.announcer || document.getElementById('sr-announcer');
+    if (!contrastBtn) return;
     const isHighContrast = document.body.classList.toggle('high-contrast');
     
     // Update button attributes
-    elements.contrastBtn.setAttribute('aria-pressed', isHighContrast ? 'true' : 'false');
+    contrastBtn.setAttribute('aria-pressed', isHighContrast ? 'true' : 'false');
     
     // Persist choice
     safeSetItem('fifa-contrast', isHighContrast ? 'active' : 'inactive');
 
     // Voice announcement in live region
-    if (elements.announcer) {
-      elements.announcer.textContent = isHighContrast 
+    if (announcer) {
+      announcer.textContent = isHighContrast 
         ? "High contrast theme activated. Color scheme changed to high-visibility black, yellow, and green." 
         : "Standard theme restored. Translucent glass style activated.";
     }
@@ -110,8 +112,9 @@ function applyFontScale(scaleValue) {
 
     safeSetItem('fifa-textscale', scaleValue);
 
-    if (elements.announcer) {
-      elements.announcer.textContent = `Font scaling changed to: ${scaleValue}. App layout adjusted.`;
+    const announcer = elements.announcer || document.getElementById('sr-announcer');
+    if (announcer) {
+      announcer.textContent = `Font scaling changed to: ${scaleValue}. App layout adjusted.`;
     }
   } catch (error) {
     console.error("Error applying font scale:", error);
@@ -123,34 +126,36 @@ function applyFontScale(scaleValue) {
  */
 function toggleSpeechAssistance() {
   try {
-    if (!elements.ttsBtn) return;
-    const isPressed = elements.ttsBtn.getAttribute('aria-pressed') === 'true';
+    const ttsBtn = elements.ttsBtn || document.getElementById('tts-toggle');
+    const announcer = elements.announcer || document.getElementById('sr-announcer');
+    if (!ttsBtn) return;
+    const isPressed = ttsBtn.getAttribute('aria-pressed') === 'true';
     const nextState = !isPressed;
 
-    elements.ttsBtn.setAttribute('aria-pressed', nextState ? 'true' : 'false');
+    ttsBtn.setAttribute('aria-pressed', nextState ? 'true' : 'false');
     setTtsStatus(nextState);
 
     // Update UI appearance
     if (nextState) {
-      elements.ttsBtn.classList.add('tts-active');
-      elements.ttsBtn.innerHTML = `
+      ttsBtn.classList.add('tts-active');
+      ttsBtn.innerHTML = `
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
           <path fill="currentColor" d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
         </svg>
         Audio Assist: On
       `;
       
-      if (elements.announcer) elements.announcer.textContent = "Audio assistance enabled. AI responses will be read aloud.";
+      if (announcer) announcer.textContent = "Audio assistance enabled. AI responses will be read aloud.";
     } else {
-      elements.ttsBtn.classList.remove('tts-active');
-      elements.ttsBtn.innerHTML = `
+      ttsBtn.classList.remove('tts-active');
+      ttsBtn.innerHTML = `
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
           <path fill="currentColor" d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
         </svg>
         Audio Assist: Off
       `;
       
-      if (elements.announcer) elements.announcer.textContent = "Audio assistance disabled.";
+      if (announcer) announcer.textContent = "Audio assistance disabled.";
       if (window && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel(); // Stop talking immediately
       }
@@ -196,12 +201,16 @@ function restorePreferences() {
  */
 function announceAccessibilityStatus() {
   try {
-    const contrast = document.body.classList.contains('high-contrast') ? "active" : "inactive";
-    const size = elements.sizeSelector ? elements.sizeSelector.value : "normal";
-    const speech = elements.ttsBtn ? (elements.ttsBtn.getAttribute('aria-pressed') === 'true' ? "enabled" : "disabled") : "disabled";
+    const sizeSelector = elements.sizeSelector || document.getElementById('font-size-selector');
+    const ttsBtn = elements.ttsBtn || document.getElementById('tts-toggle');
+    const announcer = elements.announcer || document.getElementById('sr-announcer');
 
-    if (elements.announcer) {
-      elements.announcer.textContent = `Accessibility Profile: High contrast is ${contrast}. Text scaling is set to ${size}. Audio assist read-aloud is ${speech}. Navigate portals using tabs.`;
+    const contrast = document.body.classList.contains('high-contrast') ? "active" : "inactive";
+    const size = sizeSelector ? sizeSelector.value : "normal";
+    const speech = ttsBtn ? (ttsBtn.getAttribute('aria-pressed') === 'true' ? "enabled" : "disabled") : "disabled";
+
+    if (announcer) {
+      announcer.textContent = `Accessibility Profile: High contrast is ${contrast}. Text scaling is set to ${size}. Audio assist read-aloud is ${speech}. Navigate portals using tabs.`;
     }
   } catch (error) {
     console.error("Error announcing accessibility status:", error);

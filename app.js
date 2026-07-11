@@ -81,9 +81,13 @@ function initTabNavigation() {
  * @param {Element} activeTabBtn - The button tab to activate
  */
 function activateTab(activeTabBtn) {
-  if (!activeTabBtn || !elements.tabs.length || !elements.panels.length) return;
+  const tabs = elements.tabs && elements.tabs.length ? elements.tabs : document.querySelectorAll('.nav-tab');
+  const panels = elements.panels && elements.panels.length ? elements.panels : document.querySelectorAll('.view-panel');
+  const announcer = elements.announcer || document.getElementById('sr-announcer');
 
-  elements.tabs.forEach(tab => {
+  if (!activeTabBtn || !tabs.length || !panels.length) return;
+
+  tabs.forEach(tab => {
     tab.classList.remove('active');
     tab.setAttribute('aria-selected', 'false');
     tab.setAttribute('tabindex', '-1');
@@ -95,14 +99,14 @@ function activateTab(activeTabBtn) {
 
   const targetPanelId = activeTabBtn.getAttribute('aria-controls');
   
-  elements.panels.forEach(panel => {
+  panels.forEach(panel => {
     if (panel.id === targetPanelId) {
       panel.classList.add('active');
       panel.removeAttribute('hidden');
       
       const panelTitle = panel.querySelector('h2')?.textContent || "new portal section";
-      if (elements.announcer) {
-        elements.announcer.textContent = `Switched to portal: ${panelTitle}. Content ready.`;
+      if (announcer) {
+        announcer.textContent = `Switched to portal: ${panelTitle}. Content ready.`;
       }
     } else {
       panel.classList.remove('active');
