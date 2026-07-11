@@ -12,7 +12,9 @@
  */
 export function sanitizeInput(input) {
   if (typeof input !== 'string') return '';
-  return input
+  // Truncate length to prevent Denial of Service (DoS) via CPU exhaustion from large inputs
+  const truncated = input.slice(0, 500);
+  return truncated
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

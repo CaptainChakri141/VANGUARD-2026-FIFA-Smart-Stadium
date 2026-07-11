@@ -127,6 +127,64 @@ runTest("calculateCarbonImpact - petrol car calculations have zero rewards, high
 
 
 // ==========================================================
+// 5. INPUT LENGTH LIMITATION & DOS PREVENTION TESTS
+// ==========================================================
+runTest("sanitizeInput - truncates inputs exceeding 500 characters", () => {
+  const hugeInput = "a".repeat(1000);
+  const result = sanitizeInput(hugeInput);
+  assert.strictEqual(result.length, 500);
+});
+
+// ==========================================================
+// 6. CARBON CALCULATOR DISTANCE BOUNDARY TESTS
+// ==========================================================
+runTest("calculateCarbonImpact - handles negative values by resetting to 0", () => {
+  const result = calculateCarbonImpact("metro", -50);
+  assert.strictEqual(result.co2, 0);
+  assert.strictEqual(result.points, 15); // Metro base points is 15
+});
+
+runTest("calculateCarbonImpact - caps maximum reward points to 250", () => {
+  const result = calculateCarbonImpact("metro", 5000);
+  assert.strictEqual(result.points, 250);
+});
+
+// ==========================================================
+// 7. PATH TRAVERSAL DEFENSE HEURISTICS
+// ==========================================================
+runTest("pathTraversalDefense - blocks directory traversal attacks", () => {
+  const PUBLIC_DIR = "c:\\users\\capta\\downloads\\fifa";
+  const pathSep = "\\";
+  
+  // Test helper replicating path.resolve(path.join(PUBLIC_DIR, safeUrl)) behavior
+  const checkSafePath = (safeUrl) => {
+    let rawPath = PUBLIC_DIR + safeUrl.replace(/\//g, pathSep);
+    
+    // Normalize relative segments like \..\
+    while (rawPath.includes(pathSep + '..' + pathSep) || rawPath.includes(pathSep + '..')) {
+      const idx = rawPath.indexOf(pathSep + '..');
+      if (idx === -1) break;
+      const before = rawPath.substring(0, idx);
+      const after = rawPath.substring(idx + 3);
+      const lastSep = before.lastIndexOf(pathSep);
+      if (lastSep === -1) {
+        rawPath = after;
+      } else {
+        rawPath = before.substring(0, lastSep) + (after.startsWith(pathSep) ? '' : pathSep) + after;
+      }
+    }
+    
+    return rawPath === PUBLIC_DIR || rawPath.startsWith(PUBLIC_DIR + pathSep);
+  };
+
+  assert.ok(checkSafePath("/index.html"));
+  assert.ok(checkSafePath("/modules/accessibility.js"));
+  assert.ok(!checkSafePath("/../package.json"));
+  assert.ok(!checkSafePath("/../fifa-secrets/db.json"));
+});
+
+
+// ==========================================================
 // RESULTS SUMMARY
 // ==========================================================
 console.log("--------------------------------------------------");

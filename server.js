@@ -29,9 +29,13 @@ const server = http.createServer((req, res) => {
   let safeUrl = req.url.split('?')[0];
   if (safeUrl === '/') safeUrl = '/index.html';
   
-  const filePath = path.join(PUBLIC_DIR, safeUrl);
+  // Resolve path to handle relative segments (e.g. ..) safely
+  const filePath = path.resolve(path.join(PUBLIC_DIR, safeUrl));
   
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  // Ensure the resolved path is within the PUBLIC_DIR directory
+  const hasValidPrefix = filePath === PUBLIC_DIR || filePath.startsWith(PUBLIC_DIR + path.sep);
+  
+  if (!hasValidPrefix) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('403 Forbidden - Access Denied');
     return;

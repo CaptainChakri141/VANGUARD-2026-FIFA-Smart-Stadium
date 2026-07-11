@@ -35,7 +35,7 @@
             <option value="xlarge">Extra Large</option>
           </select>
         </div>
-        <button id="contrast-toggle" class="btn btn-secondary btn-icon" aria-label="Toggle high contrast mode" title="Toggle high contrast">
+        <button id="contrast-toggle" class="btn btn-secondary btn-icon" aria-label="Toggle high contrast mode" aria-pressed="false" title="Toggle high contrast">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
             <path fill="currentColor" d="M12 2A10 10 0 0 0 2 12A10 10 0 0 0 12 22A10 10 0 0 0 22 12A10 10 0 0 0 12 2M12 4A8 8 0 0 1 12 20V4Z" />
           </svg>
@@ -111,7 +111,7 @@
               <form id="fan-chat-form" class="chat-input-area" novalidate>
                 <div class="input-wrapper">
                   <label for="fan-chat-input" class="sr-only">Type your question here</label>
-                  <input type="text" id="fan-chat-input" placeholder="Type query in any language (e.g. ¿Dónde están los baños?)..." aria-required="true" autocomplete="off" max="250">
+                  <input type="text" id="fan-chat-input" placeholder="Type query in any language (e.g. ¿Dónde están los baños?)..." aria-required="true" autocomplete="off" maxlength="250">
                   
                   <label for="fan-lang-select" class="sr-only">Translation Target Language</label>
                   <select id="fan-lang-select" class="lang-select" title="Output Language">
@@ -499,6 +499,6 @@
   </footer>
 
   <!-- App logic entry -->
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

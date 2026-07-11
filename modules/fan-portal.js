@@ -10,7 +10,8 @@ import { sanitizeInput, classifyIntent, calculateCarbonImpact } from './ai-engin
 // Application State for Fan
 const fanState = {
   greenPoints: 0,
-  isTtsActive: false
+  isTtsActive: false,
+  typingInterval: null // track active typing to clear/prevent races
 };
 
 // Coordinate coordinates matching SVG nodes
@@ -25,55 +26,123 @@ const MAP_COORDINATES = {
   "Quiet Room 1": { x: 120, y: 280 }
 };
 
+// DOM Cache
+const elements = {
+  chatForm: null,
+  chatInput: null,
+  chatMessages: null,
+  langSelect: null,
+  greenGoalForm: null,
+  btnCalcRoute: null,
+  transportSel: null,
+  distanceInput: null,
+  resultsDiv: null,
+  co2Val: null,
+  ratingVal: null,
+  pointsVal: null,
+  rewardDrink: null,
+  rewardDiscount: null,
+  rewardStatus: null,
+  startGate: null,
+  endDest: null,
+  pathLine: null,
+  directionsBox: null,
+  routeSummary: null,
+  routeSteps: null,
+  announcer: null,
+  quickPromptBtns: []
+};
+
 /**
  * Initializes all Fan Portal event listeners and visual systems.
  */
 export function initFanPortal() {
-  const chatForm = document.getElementById('fan-chat-form');
-  const chatInput = document.getElementById('fan-chat-input');
-  const quickPromptBtns = document.querySelectorAll('.quick-prompts .btn-chip');
-  const greenGoalForm = document.getElementById('greengoal-form');
-  const btnCalcRoute = document.getElementById('btn-calc-route');
-  
-  // 1. Setup Chatbot submit
-  if (chatForm && chatInput) {
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      handleChatSubmission();
-    });
-  }
+  try {
+    // Cache all DOM references
+    elements.chatForm = document.getElementById('fan-chat-form');
+    elements.chatInput = document.getElementById('fan-chat-input');
+    elements.chatMessages = document.getElementById('fan-chat-messages');
+    elements.langSelect = document.getElementById('fan-lang-select');
+    elements.greenGoalForm = document.getElementById('greengoal-form');
+    elements.btnCalcRoute = document.getElementById('btn-calc-route');
+    elements.transportSel = document.getElementById('gg-transport');
+    elements.distanceInput = document.getElementById('gg-distance');
+    elements.resultsDiv = document.getElementById('greengoal-result');
+    elements.co2Val = document.getElementById('gg-co2-val');
+    elements.ratingVal = document.getElementById('gg-rating-val');
+    elements.pointsVal = document.getElementById('gg-points-val');
+    elements.rewardDrink = document.getElementById('reward-drink');
+    elements.rewardDiscount = document.getElementById('reward-discount');
+    elements.rewardStatus = document.getElementById('reward-status');
+    elements.startGate = document.getElementById('route-start');
+    elements.endDest = document.getElementById('route-end');
+    elements.pathLine = document.getElementById('route-path-line');
+    elements.directionsBox = document.getElementById('routing-directions');
+    elements.routeSummary = document.getElementById('routing-summary');
+    elements.routeSteps = document.getElementById('routing-steps');
+    elements.announcer = document.getElementById('sr-announcer');
+    elements.quickPromptBtns = document.querySelectorAll('.quick-prompts .btn-chip');
 
-  // 2. Setup Quick Prompts
-  quickPromptBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const prompt = btn.getAttribute('data-prompt');
-      if (prompt && chatInput) {
-        chatInput.value = prompt;
+    // 1. Setup Chatbot submit
+    if (elements.chatForm && elements.chatInput) {
+      elements.chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
         handleChatSubmission();
-      }
-    });
-  });
+      });
+    }
 
-  // 3. Setup GreenGoal carbon tracker calculator
-  if (greenGoalForm) {
-    greenGoalForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      handleCarbonCalculation();
+    // 2. Setup Quick Prompts
+    elements.quickPromptBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prompt = btn.getAttribute('data-prompt');
+        if (prompt && elements.chatInput) {
+          elements.chatInput.value = prompt;
+          handleChatSubmission();
+        }
+      });
     });
+
+    // 3. Setup GreenGoal carbon tracker calculator
+    if (elements.greenGoalForm) {
+      elements.greenGoalForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleCarbonCalculation();
+      });
+    }
+
+    // 4. Setup Stadium Navigation routing computation
+    if (elements.btnCalcRoute) {
+      elements.btnCalcRoute.addEventListener('click', () => {
+        computeStadiumRoute();
+      });
+    }
+
+    if (elements.startGate) {
+      elements.startGate.addEventListener('change', () => {
+        computeStadiumRoute();
+      });
+    }
+
+    if (elements.endDest) {
+      elements.endDest.addEventListener('change', () => {
+        computeStadiumRoute();
+      });
+    }
+
+    // 5. Setup Rewards Redemption Buttons
+    if (elements.rewardDrink) {
+      elements.rewardDrink.addEventListener('click', () => redeemReward('drink', 50));
+    }
+    if (elements.rewardDiscount) {
+      elements.rewardDiscount.addEventListener('click', () => redeemReward('discount', 100));
+    }
+
+    // 6. Setup Interactive Map Elements Keyboard & Click Navigation
+    initMapInteractions();
+
+  } catch (error) {
+    console.error("Error booting Fan Portal:", error);
   }
-
-  // 4. Setup Stadium Navigation routing computation
-  if (btnCalcRoute) {
-    btnCalcRoute.addEventListener('click', () => {
-      computeStadiumRoute();
-    });
-  }
-
-  // 5. Setup Rewards Redemption Buttons
-  const rewardDrink = document.getElementById('reward-drink');
-  const rewardDiscount = document.getElementById('reward-discount');
-  if (rewardDrink) rewardDrink.addEventListener('click', () => redeemReward('drink', 50));
-  if (rewardDiscount) rewardDiscount.addEventListener('click', () => redeemReward('discount', 100));
 }
 
 /**
@@ -82,6 +151,9 @@ export function initFanPortal() {
  */
 export function setTtsStatus(active) {
   fanState.isTtsActive = active;
+  if (!active && window && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 /**
@@ -89,51 +161,56 @@ export function setTtsStatus(active) {
  * @param {string} text - text to say
  */
 function speakText(text) {
-  if (!fanState.isTtsActive || !('speechSynthesis' in window)) return;
-  
-  // Cancel current speech to prevent overlapping queues
-  window.speechSynthesis.cancel();
-  
-  const cleanMsg = text.replace(/[\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF]/g, ""); // Strip emojis for screen reader
-  const utterance = new SpeechSynthesisUtterance(cleanMsg);
-  utterance.rate = 1.0;
-  window.speechSynthesis.speak(utterance);
+  try {
+    if (!fanState.isTtsActive || !window || !('speechSynthesis' in window)) return;
+    
+    // Cancel current speech to prevent overlapping queues
+    window.speechSynthesis.cancel();
+    
+    const cleanMsg = text.replace(/[\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF]/g, ""); // Strip emojis for screen reader
+    const utterance = new SpeechSynthesisUtterance(cleanMsg);
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    console.error("Text-to-speech error:", error);
+  }
 }
 
 /**
  * Processes chat input submissions and updates the chat bubble interface.
  */
 function handleChatSubmission() {
-  const chatInput = document.getElementById('fan-chat-input');
-  const langSelect = document.getElementById('fan-lang-select');
-  const chatMessages = document.getElementById('fan-chat-messages');
+  try {
+    if (!elements.chatInput || !elements.chatMessages || !elements.langSelect) return;
 
-  if (!chatInput || !chatMessages || !langSelect) return;
+    const rawMsg = elements.chatInput.value.trim();
+    if (!rawMsg) return;
 
-  const rawMsg = chatInput.value.trim();
-  if (!rawMsg) return;
+    // Clean and sanitize user query
+    const cleanMsg = sanitizeInput(rawMsg);
+    const targetLang = elements.langSelect.value || 'en';
 
-  // Clean and sanitize user query
-  const cleanMsg = sanitizeInput(rawMsg);
-  const targetLang = langSelect.value || 'en';
+    // Append user bubble to UI
+    appendChatBubble('user', cleanMsg);
+    elements.chatInput.value = '';
 
-  // Append user bubble to UI
-  appendChatBubble('user', cleanMsg);
-  chatInput.value = '';
-
-  // Classify intent and fetch AI response
-  const aiResponse = classifyIntent(cleanMsg, targetLang);
-  
-  // Simulate stream-like typing for premium aesthetics
-  appendChatBubbleWithTyping('bot', aiResponse);
+    // Classify intent and fetch AI response
+    const aiResponse = classifyIntent(cleanMsg, targetLang);
+    
+    // Simulate stream-like typing for premium aesthetics
+    appendChatBubbleWithTyping('bot', aiResponse);
+  } catch (error) {
+    console.error("Chatbot processing error:", error);
+  }
 }
 
 /**
  * Appends a static chat bubble to the message log
+ * @param {string} sender - 'user' or 'bot'
+ * @param {string} text - message content
  */
 function appendChatBubble(sender, text) {
-  const container = document.getElementById('fan-chat-messages');
-  if (!container) return;
+  if (!elements.chatMessages) return;
 
   const msgDiv = document.createElement('div');
   msgDiv.className = `chat-msg ${sender}`;
@@ -143,18 +220,25 @@ function appendChatBubble(sender, text) {
   bubble.textContent = text;
   
   msgDiv.appendChild(bubble);
-  container.appendChild(msgDiv);
+  elements.chatMessages.appendChild(msgDiv);
   
   // Scroll to bottom
-  container.scrollTop = container.scrollHeight;
+  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 }
 
 /**
  * Appends a bubble with a simulated stream-typing animation.
+ * @param {string} sender - 'user' or 'bot'
+ * @param {string} fullText - message content to stream
  */
 function appendChatBubbleWithTyping(sender, fullText) {
-  const container = document.getElementById('fan-chat-messages');
-  if (!container) return;
+  if (!elements.chatMessages) return;
+
+  // Clear any existing typing interval to avoid race conditions
+  if (fanState.typingInterval) {
+    clearInterval(fanState.typingInterval);
+    fanState.typingInterval = null;
+  }
 
   const msgDiv = document.createElement('div');
   msgDiv.className = `chat-msg ${sender}`;
@@ -164,27 +248,32 @@ function appendChatBubbleWithTyping(sender, fullText) {
   bubble.textContent = ''; // Start empty for streaming
   
   msgDiv.appendChild(bubble);
-  container.appendChild(msgDiv);
+  elements.chatMessages.appendChild(msgDiv);
 
   // Trigger TTS reading immediately at stream start
   speakText(fullText);
 
   // Announce dynamic bot output in live region
-  const announcer = document.getElementById('sr-announcer');
-  if (announcer) {
-    announcer.textContent = `New AI message: ${fullText}`;
+  if (elements.announcer) {
+    elements.announcer.textContent = `New AI message: ${fullText}`;
   }
 
   // Typist routine
   let index = 0;
   const words = fullText.split(' ');
-  const interval = setInterval(() => {
-    if (index < words.length) {
-      bubble.textContent += (index === 0 ? '' : ' ') + words[index];
-      index++;
-      container.scrollTop = container.scrollHeight;
-    } else {
-      clearInterval(interval);
+  fanState.typingInterval = setInterval(() => {
+    try {
+      if (index < words.length) {
+        bubble.textContent += (index === 0 ? '' : ' ') + words[index];
+        index++;
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+      } else {
+        clearInterval(fanState.typingInterval);
+        fanState.typingInterval = null;
+      }
+    } catch (e) {
+      clearInterval(fanState.typingInterval);
+      fanState.typingInterval = null;
     }
   }, 40); // Fast word-by-word streaming
 }
@@ -193,158 +282,248 @@ function appendChatBubbleWithTyping(sender, fullText) {
  * Evaluates carbon tracker form inputs and updates green score telemetry.
  */
 function handleCarbonCalculation() {
-  const transportSel = document.getElementById('gg-transport');
-  const distanceInput = document.getElementById('gg-distance');
-  const resultsDiv = document.getElementById('greengoal-result');
-  const co2Val = document.getElementById('gg-co2-val');
-  const ratingVal = document.getElementById('gg-rating-val');
-  const pointsVal = document.getElementById('gg-points-val');
+  try {
+    if (!elements.transportSel || !elements.distanceInput || !elements.resultsDiv || !elements.co2Val || !elements.ratingVal || !elements.pointsVal) return;
 
-  if (!transportSel || !distanceInput || !resultsDiv || !co2Val || !ratingVal || !pointsVal) return;
+    const mode = elements.transportSel.value;
+    const dist = parseFloat(elements.distanceInput.value);
 
-  const mode = transportSel.value;
-  const dist = parseFloat(distanceInput.value);
+    // Validate travel distance boundaries (0 to 15000 km)
+    if (isNaN(dist) || dist <= 0) {
+      alert("Please enter a valid positive travel distance.");
+      return;
+    }
+    if (dist > 15000) {
+      alert("Distance exceeds maximum range (15,000 km). Please enter a realistic distance.");
+      return;
+    }
 
-  if (isNaN(dist) || dist <= 0) {
-    alert("Please enter a valid positive travel distance.");
-    return;
+    const res = calculateCarbonImpact(mode, dist);
+
+    // Render metrics
+    elements.co2Val.textContent = `${res.co2} kg CO₂`;
+    elements.ratingVal.textContent = res.rating;
+    
+    // Update state and rewards
+    fanState.greenPoints += res.points;
+    elements.pointsVal.textContent = `${fanState.greenPoints} pts`;
+
+    // Announce values to screen reader
+    if (elements.announcer) {
+      elements.announcer.textContent = `Carbon footprint calculated: ${res.co2} kilograms. AI sustainability score rating is: ${res.rating}. You earned ${res.points} Green Points! Total points balance: ${fanState.greenPoints} points.`;
+    }
+
+    elements.resultsDiv.classList.remove('hidden');
+    updateRedemptionButtons();
+  } catch (error) {
+    console.error("Carbon calculation error:", error);
   }
-
-  const res = calculateCarbonImpact(mode, dist);
-
-  // Render metrics
-  co2Val.textContent = `${res.co2} kg CO₂`;
-  ratingVal.textContent = res.rating;
-  
-  // Update state and rewards
-  fanState.greenPoints += res.points;
-  pointsVal.textContent = `${fanState.greenPoints} pts`;
-
-  // Announce values to screen reader
-  const announcer = document.getElementById('sr-announcer');
-  if (announcer) {
-    announcer.textContent = `Carbon footprint calculated: ${res.co2} kilograms. AI sustainability score rating is: ${res.rating}. You earned ${res.points} Green Points! Total points balance: ${fanState.greenPoints} points.`;
-  }
-
-  resultsDiv.classList.remove('hidden');
-  updateRedemptionButtons();
 }
 
 /**
  * Controls redemption eligibility for rewards buttons based on points state.
  */
 function updateRedemptionButtons() {
-  const rewardDrink = document.getElementById('reward-drink');
-  const rewardDiscount = document.getElementById('reward-discount');
-
-  if (rewardDrink) {
-    rewardDrink.disabled = fanState.greenPoints < 50;
+  if (elements.rewardDrink) {
+    elements.rewardDrink.disabled = fanState.greenPoints < 50;
   }
-  if (rewardDiscount) {
-    rewardDiscount.disabled = fanState.greenPoints < 100;
+  if (elements.rewardDiscount) {
+    elements.rewardDiscount.disabled = fanState.greenPoints < 100;
   }
 }
 
 /**
  * Handles eco-points deduction and displays coupon rewards.
+ * @param {string} rewardType - 'drink' or 'discount'
+ * @param {number} cost - point cost
  */
 function redeemReward(rewardType, cost) {
-  const statusMsg = document.getElementById('reward-status');
-  const pointsVal = document.getElementById('gg-points-val');
+  try {
+    if (!elements.rewardStatus || !elements.pointsVal) return;
 
-  if (!statusMsg || !pointsVal) return;
+    if (fanState.greenPoints < cost) {
+      elements.rewardStatus.style.color = 'var(--red-color)';
+      elements.rewardStatus.textContent = "Error: Insufficient Green Points balance.";
+      return;
+    }
 
-  if (fanState.greenPoints < cost) {
-    statusMsg.style.color = 'var(--red-color)';
-    statusMsg.textContent = "Error: Insufficient Green Points balance.";
-    return;
-  }
+    // Deduct points
+    fanState.greenPoints -= cost;
+    elements.pointsVal.textContent = `${fanState.greenPoints} pts`;
+    updateRedemptionButtons();
 
-  // Deduct points
-  fanState.greenPoints -= cost;
-  pointsVal.textContent = `${fanState.greenPoints} pts`;
-  updateRedemptionButtons();
+    const couponCode = `FIFA-GREEN-${rewardType.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    
+    elements.rewardStatus.style.color = 'var(--accent-color)';
+    elements.rewardStatus.textContent = `Successfully Redeemed! Code: ${couponCode}. Show to concession staff.`;
 
-  const couponCode = `FIFA-GREEN-${rewardType.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  
-  statusMsg.style.color = 'var(--accent-color)';
-  statusMsg.textContent = `Successfully Redeemed! Code: ${couponCode}. Show to concession staff.`;
-
-  // Screen reader alert
-  const announcer = document.getElementById('sr-announcer');
-  if (announcer) {
-    announcer.textContent = `Reward claimed successfully. Your unique coupon code is ${couponCode}. Points remaining: ${fanState.greenPoints}.`;
+    // Screen reader alert
+    if (elements.announcer) {
+      elements.announcer.textContent = `Reward claimed successfully. Your unique coupon code is ${couponCode}. Points remaining: ${fanState.greenPoints}.`;
+    }
+  } catch (error) {
+    console.error("Reward redemption error:", error);
   }
 }
 
 /**
  * Dynamic SVG routing calculation that models crowd congestion detours.
  */
-function computeStadiumRoute() {
-  const startGate = document.getElementById('route-start');
-  const endDest = document.getElementById('route-end');
-  const pathLine = document.getElementById('route-path-line');
-  const directionsBox = document.getElementById('routing-directions');
-  const routeSummary = document.getElementById('routing-summary');
-  const routeSteps = document.getElementById('routing-steps');
+export function computeStadiumRoute() {
+  try {
+    if (!elements.startGate || !elements.endDest || !elements.pathLine || !elements.directionsBox || !elements.routeSummary || !elements.routeSteps) return;
 
-  if (!startGate || !endDest || !pathLine || !directionsBox || !routeSummary || !routeSteps) return;
+    const startName = elements.startGate.value;
+    const endName = elements.endDest.value;
 
-  const startName = startGate.value;
-  const endName = endDest.value;
+    const startPt = MAP_COORDINATES[startName];
+    const endPt = MAP_COORDINATES[endName];
 
-  const startPt = MAP_COORDINATES[startName];
-  const endPt = MAP_COORDINATES[endName];
+    if (!startPt || !endPt) return;
 
-  if (!startPt || !endPt) return;
+    // Render SVG Path line dynamically
+    // To simulate stadium corridors, route goes from start -> central stadium junction (200, 200) -> destination.
+    const routeD = `M ${startPt.x} ${startPt.y} Q 200 200 ${endPt.x} ${endPt.y}`;
+    
+    elements.pathLine.setAttribute('d', routeD);
+    elements.pathLine.classList.remove('hidden');
 
-  // Render SVG Path line dynamically
-  // To simulate stadium corridors, route goes from start -> central stadium junction (200, 200) -> destination.
-  const routeD = `M ${startPt.x} ${startPt.y} Q 200 200 ${endPt.x} ${endPt.y}`;
+    // Interactive node highlights
+    document.querySelectorAll('.map-node').forEach(node => {
+      node.classList.remove('active-route-node');
+      node.style.r = ""; // reset inline scale styles
+    });
+    
+    // Match corresponding nodes to apply custom focus visuals
+    const startLetter = startName.split(' ')[1];
+    const gateNode = document.getElementById(`map-gate-${startLetter}`);
+    
+    let targetNodeId = '';
+    if (endName.includes('104')) targetNodeId = 'map-sec-104';
+    else if (endName.includes('North') || endName.includes('Medical')) targetNodeId = 'map-med-north';
+    else if (endName.includes('Hub B') || endName.includes('Concessions B')) targetNodeId = 'map-con-B';
+    else if (endName.includes('Quiet')) targetNodeId = 'map-quiet-1';
+
+    const destNode = document.getElementById(targetNodeId);
+    if (gateNode) {
+      gateNode.classList.add('active-route-node');
+      gateNode.style.r = "15px";
+    }
+    if (destNode) {
+      destNode.classList.add('active-route-node');
+      destNode.style.r = "12px";
+    }
+
+    // Dynamic directions writing
+    elements.routeSummary.textContent = `🤖 Navigation generated from ${startName} to ${endName}:`;
+    
+    // Custom step lists
+    elements.routeSteps.innerHTML = '';
+    const steps = [
+      `Scan ticket barcode at ${startName}. Security validation clear.`,
+      `Enter North-East concourse corridor. Keep left to bypass high-occupancy restroom queues.`,
+      `Proceed 150m along Ring Corridor level 1. Follow visual signage overlays.`,
+      `Arrive safely at ${endName}. Average routing speed was optimized by AI crowd balancer.`
+    ];
+
+    steps.forEach(step => {
+      const li = document.createElement('li');
+      li.textContent = step;
+      elements.routeSteps.appendChild(li);
+    });
+
+    // Announce to Screen Reader
+    if (elements.announcer) {
+      elements.announcer.textContent = `Routing path computed. Path starts at ${startName} and finishes at ${endName}. Check the step by step directives under the map section.`;
+    }
+
+    elements.directionsBox.classList.remove('hidden');
+  } catch (error) {
+    console.error("Routing computation error:", error);
+  }
+}
+
+/**
+ * Installs handlers for SVG map node selections (clicking & keyboard focus)
+ */
+function initMapInteractions() {
+  const mapNodes = document.querySelectorAll('.map-node');
   
-  pathLine.setAttribute('d', routeD);
-  pathLine.classList.remove('hidden');
+  mapNodes.forEach(node => {
+    const name = node.getAttribute('data-name');
+    if (!name) return;
 
-  // Interactive node highlights
-  document.querySelectorAll('.map-node').forEach(node => {
-    node.classList.remove('active-route-node');
+    // Make node focusable for keyboard users
+    node.setAttribute('tabindex', '0');
+    node.setAttribute('role', 'button');
+    
+    // Set appropriate initial ARIA labels
+    updateNodeAriaLabel(node);
+
+    // Click handler to select location
+    node.addEventListener('click', () => {
+      selectMapNode(node);
+    });
+
+    // Keyboard handlers (Space & Enter)
+    node.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        selectMapNode(node);
+      }
+    });
   });
+}
+
+/**
+ * Handle node selection, update selectors, and trigger route generation
+ * @param {Element} node - SVG element clicked/focused
+ */
+function selectMapNode(node) {
+  const name = node.getAttribute('data-name');
+  if (!name) return;
+
+  const isGate = node.classList.contains('node-gate');
   
-  // Match corresponding nodes to apply custom focus visuals
-  const gateNode = document.getElementById(`map-gate-${startName.split(' ')[1]}`);
-  let targetNodeId = '';
-  if (endName.includes('104')) targetNodeId = 'map-sec-104';
-  else if (endName.includes('North')) targetNodeId = 'map-med-north';
-  else if (endName.includes('Hub B') || endName.includes('Concessions B')) targetNodeId = 'map-con-B';
-  else if (endName.includes('Quiet')) targetNodeId = 'map-quiet-1';
-
-  const destNode = document.getElementById(targetNodeId);
-  if (gateNode) gateNode.style.r = "15px";
-  if (destNode) destNode.style.r = "12px";
-
-  // Dynamic directions writing
-  routeSummary.textContent = `🤖 Navigation generated from ${startName} to ${endName}:`;
-  
-  // Custom step lists
-  routeSteps.innerHTML = '';
-  const steps = [
-    `Scan ticket barcode at ${startName}. Security validation clear.`,
-    `Enter North-East concourse corridor. Keep left to bypass high-occupancy restroom queues.`,
-    `Proceed 150m along Ring Corridor level 1. Follow visual signage overlays.`,
-    `Arrive safely at ${endName}. Average routing speed was optimized by AI crowd balancer.`
-  ];
-
-  steps.forEach(step => {
-    const li = document.createElement('li');
-    li.textContent = step;
-    routeSteps.appendChild(li);
-  });
-
-  // Announce to Screen Reader
-  const announcer = document.getElementById('sr-announcer');
-  if (announcer) {
-    announcer.textContent = `Routing path computed. Path starts at ${startName} and finishes at ${endName}. Check the step by step directives under the map section.`;
+  if (isGate) {
+    if (elements.startGate) {
+      elements.startGate.value = name;
+      if (elements.announcer) {
+        elements.announcer.textContent = `Selected ${name} as starting gate.`;
+      }
+    }
+  } else {
+    if (elements.endDest) {
+      elements.endDest.value = name;
+      if (elements.announcer) {
+        elements.announcer.textContent = `Selected ${name} as target destination.`;
+      }
+    }
   }
 
-  directionsBox.classList.remove('hidden');
+  // Trigger routing calculation
+  computeStadiumRoute();
+}
+
+/**
+ * Update the accessible description of map sensors based on real-time loads
+ * @param {Element} node - SVG Element to modify
+ */
+export function updateNodeAriaLabel(node) {
+  try {
+    const name = node.getAttribute('data-name');
+    if (!name) return;
+
+    const isGate = node.classList.contains('node-gate');
+    if (isGate) {
+      const letter = name.split(' ')[1];
+      const progressLabel = document.getElementById(`gate-${letter}-stats`);
+      const statusText = progressLabel ? progressLabel.textContent : "Standard wait";
+      node.setAttribute('aria-label', `${name}. Current Queue: ${statusText}. Press Space or Enter to select as starting gate.`);
+    } else {
+      node.setAttribute('aria-label', `${name} destination. Press Space or Enter to select as target destination.`);
+    }
+  } catch (error) {
+    console.error("Error setting node ARIA label:", error);
+  }
 }

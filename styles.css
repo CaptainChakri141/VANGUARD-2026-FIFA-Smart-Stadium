@@ -34,6 +34,7 @@
     
     /* Text Scaling Multipliers */
     --text-scale: 1.0;
+    font-size: calc(16px * var(--text-scale));
   }
   
   /* High Contrast Theme Override */
@@ -57,11 +58,18 @@
     --red-color: #ff007f;     /* Hot Pink / High Visibility Red */
   }
   
+  /* High-Contrast Button Text Contrast Fixes */
+  body.high-contrast .btn-primary,
+  body.high-contrast .btn-accent,
+  body.high-contrast .btn-reward:hover:not(:disabled) {
+    color: #000000 !important;
+  }
+  
   /* Font Scaling Options */
-  body.font-large {
+  :root.font-large {
     --text-scale: 1.15;
   }
-  body.font-xlarge {
+  :root.font-xlarge {
     --text-scale: 1.3;
   }
   
@@ -79,7 +87,7 @@
     background-color: var(--bg-primary);
     color: var(--text-primary);
     font-family: var(--font-primary);
-    font-size: calc(16px * var(--text-scale));
+    font-size: 1rem;
     line-height: 1.5;
     min-height: 100vh;
     display: flex;
@@ -106,9 +114,16 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible,
-  [role="tab"]:focus-visible {
+  [role="tab"]:focus-visible,
+  .map-node:focus-visible {
     outline: 3px solid var(--gold-color);
     outline-offset: 3px;
+  }
+  
+  .map-node:focus-visible {
+    stroke: var(--gold-color) !important;
+    stroke-width: 3px !important;
+    filter: drop-shadow(0 0 8px var(--gold-color)) !important;
   }
   
   /* Scrollbar Customization */
