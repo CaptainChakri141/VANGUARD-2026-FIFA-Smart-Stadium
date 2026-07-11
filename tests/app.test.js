@@ -185,6 +185,22 @@ runTest("pathTraversalDefense - blocks directory traversal attacks", () => {
 
 
 // ==========================================================
+// 8. GERMAN TRANSLATION SUPPORT TESTS
+// ==========================================================
+runTest("classifyIntent - classifies food options in German", () => {
+  const query = "Ich habe Hunger und möchte etwas veganes essen";
+  const result = classifyIntent(query, 'de');
+  assert.ok(result.includes("Food-Hub B") || result.includes("vegane"));
+});
+
+runTest("classifyIntent - falls back correctly for unknown German query", () => {
+  const query = "Wie spät ist es?";
+  const result = classifyIntent(query, 'de');
+  assert.ok(result.includes("KI-Concierge") || result.includes("Fan-Service"));
+});
+
+
+// ==========================================================
 // RESULTS SUMMARY
 // ==========================================================
 console.log("--------------------------------------------------");

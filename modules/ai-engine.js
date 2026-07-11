@@ -72,6 +72,15 @@ const TRANSLATION_DB = {
     "food_options": "🍔 フードハブBでは、ハラール、ヴィーガン、グルテンフリーの食事を提供しています。待ち時間は現在短いです（5分未満）。",
     "fallback": "🤖 ご質問ありがとうございます。メインコンコースの総合案内所にお越しいただくか、インタラクティブマップをご活用ください。"
   },
+  de: {
+    "Welcome!": "Willkommen im FIFA-Stadion 2026! Ich bin Ihr KI-Concierge.",
+    "medical_station": "🏥 Die nächste Sanitätsstation befindet sich hinter Sektor 104, erreichbar über den nördlichen Hauptkorridor.",
+    "gate_congestion": "🗺️ Die Tore A und D sind derzeit frei (Wartezeit < 5 Min.). Vermeiden Sie Tor C wegen hohem Andrang.",
+    "transit_eco": "🚆 Umweltempfehlung: Nutzen Sie die Stadion-U-Bahn-Linie 2 aus der Innenstadt. Spart 4,2 kg CO₂ und bringt 30 grüne Punkte.",
+    "quiet_zone": "🧘 Sensorische Ruhezonen befinden sich in Sektor 120 (Ebene 2) und Sektor 202 (Ebene 4). Lärmschutzkopfhörer sind verfügbar.",
+    "food_options": "🍔 Der Food-Hub B bietet Halal-, vegane und glutenfreie Speisen. Die Warteschlangen sind derzeit kurz (< 5 Min.).",
+    "fallback": "🤖 Ich habe Ihre Anfrage verstanden. Ich empfehle Ihnen, sich an den Fan-Service im Hauptkorridor zu wenden oder den Stadion-Navigationsbereich zu prüfen."
+  },
   en: {
     "Welcome!": "Welcome to the MetLife FIFA 2026 Smart Stadium Companion. I'm your GenAI concierge.",
     "medical_station": "🏥 The nearest medical station is located behind Section 104, accessible via the North main corridor.",
@@ -87,7 +96,7 @@ const TRANSLATION_DB = {
  * Classifies fan queries and returns dynamic AI-like responses.
  * Supports multi-language translation outputs.
  * @param {string} text - Cleaned user message.
- * @param {string} targetLang - Two-letter language code ('en', 'es', 'fr', 'pt', 'ar', 'ja').
+ * @param {string} targetLang - Two-letter language code ('en', 'es', 'fr', 'pt', 'ar', 'ja', 'de').
  * @returns {string} Simulated GenAI response.
  */
 export function classifyIntent(text, targetLang = 'en') {
@@ -95,19 +104,19 @@ export function classifyIntent(text, targetLang = 'en') {
   const lang = TRANSLATION_DB[targetLang] ? targetLang : 'en';
   const dict = TRANSLATION_DB[lang];
 
-  if (query.includes('medical') || query.includes('doctor') || query.includes('nurse') || query.includes('hurt') || query.includes('faint') || query.includes('hospital') || query.includes('aid') || query.includes('médico') || query.includes('médecin')) {
+  if (query.includes('medical') || query.includes('doctor') || query.includes('nurse') || query.includes('hurt') || query.includes('faint') || query.includes('hospital') || query.includes('aid') || query.includes('médico') || query.includes('médecin') || query.includes('arzt') || query.includes('medizin') || query.includes('krank')) {
     return dict.medical_station;
   }
-  if (query.includes('gate') || query.includes('entrance') || query.includes('crowd') || query.includes('congestion') || query.includes('queue') || query.includes('wait') || query.includes('line') || query.includes('puerta') || query.includes('porte')) {
+  if (query.includes('gate') || query.includes('entrance') || query.includes('crowd') || query.includes('congestion') || query.includes('queue') || query.includes('wait') || query.includes('line') || query.includes('puerta') || query.includes('porte') || query.includes('tor') || query.includes('einlass') || query.includes('schlange') || query.includes('wartezeit')) {
     return dict.gate_congestion;
   }
-  if (query.includes('transit') || query.includes('bus') || query.includes('subway') || query.includes('metro') || query.includes('train') || query.includes('carpool') || query.includes('carbon') || query.includes('footprint') || query.includes('green') || query.includes('sustainable') || query.includes('eco')) {
+  if (query.includes('transit') || query.includes('bus') || query.includes('subway') || query.includes('metro') || query.includes('train') || query.includes('carpool') || query.includes('carbon') || query.includes('footprint') || query.includes('green') || query.includes('sustainable') || query.includes('eco') || query.includes('zug') || query.includes('bahn') || query.includes('umwelt') || query.includes('verkehr')) {
     return dict.transit_eco;
   }
-  if (query.includes('quiet') || query.includes('sensory') || query.includes('wheelchair') || query.includes('disability') || query.includes('accessible') || query.includes('deaf') || query.includes('blind') || query.includes('audio') || query.includes('calm') || query.includes('silla')) {
+  if (query.includes('quiet') || query.includes('sensory') || query.includes('wheelchair') || query.includes('disability') || query.includes('accessible') || query.includes('deaf') || query.includes('blind') || query.includes('audio') || query.includes('calm') || query.includes('silla') || query.includes('ruhig') || query.includes('stille') || query.includes('barrierefrei')) {
     return dict.quiet_zone;
   }
-  if (query.includes('food') || query.includes('eat') || query.includes('concession') || query.includes('drink') || query.includes('vegan') || query.includes('halal') || query.includes('water') || query.includes('gluten') || query.includes('comida')) {
+  if (query.includes('food') || query.includes('eat') || query.includes('concession') || query.includes('drink') || query.includes('vegan') || query.includes('halal') || query.includes('water') || query.includes('gluten') || query.includes('comida') || query.includes('essen') || query.includes('trinken') || query.includes('hunger')) {
     return dict.food_options;
   }
 

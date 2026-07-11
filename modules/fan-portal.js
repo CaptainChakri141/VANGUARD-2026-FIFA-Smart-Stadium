@@ -417,10 +417,23 @@ export function computeStadiumRoute() {
     // Dynamic directions writing
     elements.routeSummary.textContent = `🤖 Navigation generated from ${startName} to ${endName}:`;
     
+    // Live gate queue telemetry evaluation
+    const statsSpan = document.getElementById(`gate-${startLetter}-stats`);
+    const statsText = statsSpan ? statsSpan.textContent.trim() : "15% load (2m wait)";
+    
+    let densityAdvice = "low queue wait time. Proceed directly.";
+    if (statsText.includes('92%') || statsText.includes('98%') || statsText.includes('Heavy') || statsText.includes('50m') || statsText.includes('45m')) {
+      densityAdvice = `⚠️ heavy queue congestion (${statsText}). Expect delays. AI recommends slow approach or gate redistribution.`;
+    } else if (statsText.includes('60%') || statsText.includes('Med') || statsText.includes('15m')) {
+      densityAdvice = `moderate queue load (${statsText}). Normal security processing speed.`;
+    } else {
+      densityAdvice = `low queue load (${statsText}). Clear pathway to ticket checkpoints.`;
+    }
+
     // Custom step lists
     elements.routeSteps.innerHTML = '';
     const steps = [
-      `Scan ticket barcode at ${startName}. Security validation clear.`,
+      `Scan ticket barcode at ${startName}. Security checkpoint status: ${densityAdvice}`,
       `Enter North-East concourse corridor. Keep left to bypass high-occupancy restroom queues.`,
       `Proceed 150m along Ring Corridor level 1. Follow visual signage overlays.`,
       `Arrive safely at ${endName}. Average routing speed was optimized by AI crowd balancer.`
